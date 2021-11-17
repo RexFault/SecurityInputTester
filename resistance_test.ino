@@ -1,6 +1,6 @@
 /**
  * Security System Monitored Input Tester
- * By: Shane McIntosh (RexFault)
+ * By: Shane McIntosh
  * http://rexfault.net
  * 
  * This tool is used to quickly test and identify issues with a monitored input on a modern
@@ -23,9 +23,9 @@ float calculateResistance(float knownResistor, float vIn) {
     float R2 = 0;
     float buffer = 0;
     
-    buffer = vIn * 5;
+    buffer = vIn * 5.0;
     Vout = (buffer)/1024.0;
-    buffer = (5/Vout) - 1;
+    buffer = (5.0/Vout) - 1.0;
     R2 = knownResistor * buffer;
     return R2;
 }
@@ -33,22 +33,27 @@ float calculateResistance(float knownResistor, float vIn) {
 int readInput(float active, float inactive, int in_pin) {
 
       //We allow for some lee-way in regards to the valid resistances, it's pretty much never you get an exact value 
-      //Typically you get a percentage of accuracy with resistors, we're allowing +/- 3% accuracy here
-      float active_resistance_min = (active - ((0.03 * active) * 10));
-      float active_resistance_max = (active + ((0.03 * active) * 10)) + 220; //220ohms is a resistor in the circuit for detecting shorts
-      float inactive_resistance_min = (inactive - ((0.03 * inactive)* 10));
-      float inactive_resistance_max = (inactive + ((0.03 * inactive) * 10)) + 220; //220ohms is a resistor in the circuit for detecting shorts
+      //Typically you get a percentage of accuracy with resistors, we're allowing +/- 1% accuracy here
+      float active_resistance_min = (active - ((0.01 * active) * 10)) + 225;
+      float active_resistance_max = (active + ((0.01 * active) * 10)) + 225; //220ohms is a resistor in the circuit for detecting shorts
+      float inactive_resistance_min = (inactive - ((0.01 * inactive)* 10)) +  225;
+      float inactive_resistance_max = (inactive + ((0.01 * inactive) * 10)) + 225; //220ohms is a resistor in the circuit for detecting shorts   
+      
       int input_voltage = analogRead(in_pin);
 
-      /*Serial.println("In Voltage is " );
-      Serial.println(input_voltage);*/
+      /*
+      Serial.println("In Voltage is " );
+      Serial.println(input_voltage);
+      */
       
       float resistance = calculateResistance(R1, input_voltage);
       if ((resistance <= 300) && (resistance >= 1)) {
         return 3; //Input is Shorted or no resistor There is typically some resistance on the line just due to internal resistance of copper and resistors used in the circuit
         //We allow about 300 ohms for cable length if 300 ohms or less resistance then we got a short
       }
-      /*Serial.print("Resistance is ");
+      
+      /*
+      Serial.print("Resistance is ");
       Serial.println(resistance);
       Serial.print("Active Range is ");
       Serial.print(active_resistance_min);
@@ -57,8 +62,11 @@ int readInput(float active, float inactive, int in_pin) {
       Serial.print("Inactive Range is ");
       Serial.print(inactive_resistance_min);
       Serial.print(" -> ");
-      Serial.println(inactive_resistance_max);*/
-      if (input_voltage == 0) {
+      Serial.println(inactive_resistance_max);
+      */
+      
+      
+      if (input_voltage <= 100)  {
         return 4; //Input either Open or Grounded
       }
       else if ((resistance >= active_resistance_min) && (resistance <= active_resistance_max)) {
