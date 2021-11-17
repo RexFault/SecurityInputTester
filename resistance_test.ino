@@ -10,12 +10,21 @@
  * Please find the schematic on my site at http://rexfault.net
  */
 
+#include <Wire.h>
+#include <LiquidCrystal_I2C.h>
+
 #define RESISTOR_IN A0
 #define GROUND_LEAD_IN 10
 #define R1 2150 //2.2KOhm resistor metered at 2.1553
 #define MODE_SWITCH_IN 11
 #define MODE_BLUEBACK HIGH
 #define MODE_BLACKBACK LOW
+
+//Defines and variables for the LCD 20x04 display using the LiquidCrystal_I2C library
+//Don't actually needs to specify the pins since the nano only has one I2C bus but I include them here just for anyone wondering what pins they are
+#define SCL 5
+#define SCA 4 
+LiquidCrystal_I2C outputDisplay(0x27,20,4);
 
 float calculateResistance(float knownResistor, float vIn) {
 
@@ -40,11 +49,9 @@ int readInput(float active, float inactive, int in_pin) {
       float inactive_resistance_max = (inactive + ((0.01 * inactive) * 10)) + 225; //220ohms is a resistor in the circuit for detecting shorts   
       
       int input_voltage = analogRead(in_pin);
-
-      /*
-      Serial.println("In Voltage is " );
-      Serial.println(input_voltage);
-      */
+      
+      /*Serial.println("In Voltage is " );
+      Serial.println(input_voltage);*/
       
       float resistance = calculateResistance(R1, input_voltage);
       if ((resistance <= 300) && (resistance >= 1)) {
@@ -52,8 +59,7 @@ int readInput(float active, float inactive, int in_pin) {
         //We allow about 300 ohms for cable length if 300 ohms or less resistance then we got a short
       }
       
-      /*
-      Serial.print("Resistance is ");
+      /*Serial.print("Resistance is ");
       Serial.println(resistance);
       Serial.print("Active Range is ");
       Serial.print(active_resistance_min);
@@ -62,9 +68,11 @@ int readInput(float active, float inactive, int in_pin) {
       Serial.print("Inactive Range is ");
       Serial.print(inactive_resistance_min);
       Serial.print(" -> ");
-      Serial.println(inactive_resistance_max);
-      */
+      Serial.println(inactive_resistance_max);*/
       
+      if ((input_voltage <= 10) && ((isinf(resistance) || resistance > 20000))) {
+        return 6;
+      }
       
       if (input_voltage <= 100)  {
         return 4; //Input either Open or Grounded
@@ -87,10 +95,13 @@ int readInput(float active, float inactive, int in_pin) {
  */
 bool checkGroundFault(int digitalPin) {
   bool groundCheck = digitalRead(digitalPin);
-  if (groundCheck == HIGH)
+  //Serial.println(groundCheck);
+  if (groundCheck == HIGH) {
     return false;
-  else
+  }
+  else {
     return true;
+  }
 }
 
 /**
@@ -104,29 +115,41 @@ bool checkGroundFault(int digitalPin) {
  * 4 - DC/Contact Line Grounded/Open (Read as 0 on the analog Input)
  * 5 - Incorrect Resistance (not active/inactive values)
  */
-void updateOutput(int resistorState) {
-  Serial.print("Resistor State is: ");
-  
+void updateOutput(int resistorState, LiquidCrystal_I2C displayObj) {
+  //Serial.print("Resistor State is: ");
+  displayObj.setCursor(0,3);
   if (resistorState == 1) {
-    Serial.println("Active");
+    //Serial.println("Active");
+    displayObj.print("      Active    ");
   }
   else if (resistorState == 2) {
-    Serial.println("Inactive");
+    //Serial.println("Inactive");
+    displayObj.print("     Inactive      ");
   }
   else if (resistorState == 3) {
-    Serial.println("Shorted");
+    //Serial.println("Shorted");
+    displayObj.print("      Shorted      ");
   }
   else if (resistorState == 4) {
     //Serial.println("Open/Grounded");
-    if (checkGroundFault(GROUND_LEAD_IN)) {
-      Serial.println("Ground Fault");
+    /*if (checkGroundFault(GROUND_LEAD_IN) == true) {
+      //Serial.println("Ground Fault");
+      displayObj.print(" Open/Ground Fault 1");
     }
     else {
-      Serial.println("Open Leads");
-    }
+      //Serial.println("Open Leads");
+      displayObj.print(" Open/Ground Fault 2");
+    }*/
+    displayObj.print("   Ground Fault   ");
+    
   }
   else if (resistorState == 5) {
-    Serial.println("Invalid Resistor");
+    //Serial.println("Invalid Resistor");
+    displayObj.print("  Invalid Resistor    ");
+  }
+  else if (resistorState == 6) {
+
+    displayObj.print("    Open Leads     ");
   }
 }
 
@@ -134,28 +157,48 @@ void setup() {
 
   pinMode(MODE_SWITCH_IN, INPUT);
   pinMode(GROUND_LEAD_IN, INPUT_PULLUP); //Set to use pullup resistor, will be pulled low if there's a ground fault.
-  Serial.begin(9600);
+  Serial.begin(9600); //Only used in the non-LCD version of the app
+
+  //Show the splash screen
+  outputDisplay.init();
+  outputDisplay.begin(20,4); //Initialize Display
+  outputDisplay.backlight(); //Turn on the backlight
+  outputDisplay.setCursor(0,0);
+  outputDisplay.print("    Input Tester   ");
+  outputDisplay.setCursor(0,1);
+  outputDisplay.print("    Created by:    ");
+  outputDisplay.setCursor(0,2);
+  outputDisplay.print("   Shane McIntosh");
+  delay(3000); //Wait 3 seconds after showing the splash screen;
+
+  outputDisplay.home();
+  outputDisplay.clear();
+  outputDisplay.print("    Input Mode:    ");
+  outputDisplay.setCursor(0,2);
+  outputDisplay.print("   Input State:   ");
   
 }
 
 void loop() {
 
-  //int vIn = analogRead(RESISTOR_IN);
-  //int unknownResistance = calculateResistance(R1, vIn);
-
   bool mode = digitalRead(MODE_SWITCH_IN);
   int resState = 0;
 
+  outputDisplay.setCursor(0,1);
   if (mode == MODE_BLUEBACK) {
-    Serial.println("Mode is Blue Back");
+    //Serial.println("Mode is Blue Back");
+    outputDisplay.print("    Blue Back     ");
     resState = readInput(2000, 1000, RESISTOR_IN);
   }
   else if (mode == MODE_BLACKBACK) {
-    Serial.println("Mode is Black Back");
+    //Serial.println("Mode is Black Back");
+    outputDisplay.print("    Black Back    ");
     resState = readInput(500, 1000, RESISTOR_IN);
   }
-  updateOutput(resState);
-
-  delay(3000);
+  
+  outputDisplay.setCursor(0,2);
+  
+  updateOutput(resState, outputDisplay);
+  delay(500);
 
 }
