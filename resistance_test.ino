@@ -22,7 +22,7 @@
 #define MODE_BLACKBACK LOW
 
 //Uncomment this define for Serial Debug Output
-#define DEBUG
+#define DEBUG_
 
 int input_voltage = 0;
 float resistance = 0.0;
@@ -117,8 +117,8 @@ bool checkGroundFault(int digitalPin1, int digitalPin2) {
   Serial.println(groundCheck2);
   #endif
   
-  if ((groundCheck == HIGH) && (groundCheck2 >= 90)) {
-    
+  if ((groundCheck == HIGH) && (groundCheck2 >87)) {
+   
     #ifdef DEBUG
     Serial.println("Ground Check Returns False");
     #endif
